@@ -1,0 +1,755 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>The Back Row: Marco</title>
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --bg:#12141f; --panel:#1b1e2e; --panel-edge:#333852;
+    --lamp:#f2d56b; --lamp-dim:#b9a24f; --blue:#8fa6d4;
+    --text:#eceef5; --text-dim:#9aa1b8; --tag:#d8d0ae;
+    box-sizing:border-box;
+  }
+  *{box-sizing:inherit;}
+  html,body{ height:100%; margin:0; background:var(--bg); color:var(--text);
+    font-family:'Inter',system-ui,sans-serif; overflow:hidden; }
+  #stage{ position:relative; width:100%; height:100%;
+    padding-top:env(safe-area-inset-top,0px); padding-bottom:env(safe-area-inset-bottom,0px); }
+
+  #scene{ position:absolute; inset:0;
+    background: radial-gradient(ellipse 55% 40% at 50% 0%, rgba(242,213,107,0.12), transparent 65%),
+      linear-gradient(170deg, #0e101a 0%, #12141f 55%, #0b0d14 100%); }
+  .board{ position:absolute; top:11%; left:6%; width:150px; height:84px; border:3px solid #2a2f45; border-radius:3px;
+    background:rgba(60,74,70,0.35); }
+  .board::before{ content:""; position:absolute; left:12px; right:30px; top:18px; height:2px; background:rgba(236,238,245,0.3);
+    box-shadow:0 14px 0 rgba(236,238,245,0.22), 0 28px 0 rgba(236,238,245,0.15); }
+  .qmarks span{ position:absolute; font-family:'Fraunces',serif; font-size:34px; color:var(--lamp); opacity:0;
+    animation:floatq 7s ease-in-out infinite; }
+  .qmarks span:nth-child(1){ right:12%; top:16%; animation-delay:.4s; }
+  .qmarks span:nth-child(2){ right:20%; top:28%; font-size:24px; animation-delay:2.6s; }
+  .qmarks span:nth-child(3){ right:8%; top:34%; font-size:28px; animation-delay:4.6s; }
+  @keyframes floatq{ 0%{ opacity:0; transform:translateY(8px);} 30%{ opacity:.35;} 70%{ opacity:.25;} 100%{ opacity:0; transform:translateY(-14px);} }
+
+  #title{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center;
+    justify-content:center; text-align:center; padding:24px; gap:14px; background:rgba(9,10,16,0.4); overflow-y:auto; }
+  #title h1{ font-family:'Fraunces',serif; font-size:clamp(26px,5.4vw,44px); margin:0; }
+  #title p{ color:var(--text-dim); margin:0; max-width:500px; font-size:14.5px; line-height:1.6; }
+  #title p.note{ font-size:12px; opacity:.75; max-width:440px; }
+  button{ font-family:'Inter',sans-serif; cursor:pointer; border:none; }
+  .btn-primary{ background:var(--lamp); color:#2a2208; font-weight:600; font-size:16px;
+    padding:12px 30px; border-radius:3px; transition:transform .15s ease, background .15s ease; }
+  .btn-primary:hover{ background:#f7e18f; transform:translateY(-1px); }
+  .btn-primary:focus-visible,.choice-btn:focus-visible{ outline:2px solid var(--lamp); outline-offset:3px; }
+
+  #hud{ position:absolute; top:calc(env(safe-area-inset-top,0px) + 12px); left:50%; transform:translateX(-50%);
+    width:min(560px,92%); background:rgba(11,12,19,0.84); border:1px solid var(--panel-edge); border-radius:6px;
+    padding:10px 14px; display:flex; flex-direction:column; gap:8px; z-index:3; }
+  .meter{ display:flex; align-items:center; gap:10px; font-size:12px; color:var(--text-dim); }
+  .m-label{ width:62px; flex-shrink:0; }
+  .m-track{ position:relative; flex:1; height:8px; background:#0a0b11; border-radius:4px; overflow:hidden; }
+  .m-fill{ position:relative; height:100%; width:0; border-radius:4px; transition:width .5s ease, background .5s ease; background:#8fa6d4; }
+  .m-state{ width:84px; text-align:right; flex-shrink:0; color:var(--text); }
+
+  #dialogue-wrap{ position:absolute; left:0; right:0; bottom:0; padding:0 4%;
+    padding-bottom:calc(4% + env(safe-area-inset-bottom,0px)); display:flex; justify-content:center; }
+  #box{ width:100%; max-width:800px; max-height:66vh; overflow-y:auto; background:linear-gradient(180deg,var(--panel),#151827);
+    border:1px solid var(--panel-edge); border-radius:6px; padding:18px 24px 20px;
+    box-shadow:0 -8px 40px rgba(0,0,0,0.4); cursor:pointer; }
+  #box.narration{ background:linear-gradient(180deg,#191c2a,#0f111a); }
+  #box.thought{ background:linear-gradient(180deg,#252330,#161422); border-color:#6a5a43; }
+  #box.thought #speaker{ color:var(--lamp); font-style:italic; }
+  #box.thought #line{ color:#efe6c8; font-style:italic; font-size:15px; }
+  #box-inner{ display:flex; gap:16px; align-items:flex-start; }
+  #portrait{ width:78px; height:78px; flex-shrink:0; border-radius:6px; overflow:hidden;
+    background:#0d0f17; border:1px solid var(--panel-edge); transition:opacity .2s ease, filter .2s ease; }
+  #portrait.hidden-p{ display:none; }
+  #portrait.warn{ border-color:#e3a857; }
+  #portrait.hot{ border-color:#c9563f; }
+  #text-col{ flex:1; min-width:0; }
+  #speaker{ font-family:'Fraunces',serif; color:var(--lamp); font-size:15px; margin:0 0 8px 0; }
+  #box.narration #speaker{ color:var(--text-dim); font-style:italic; }
+  #line{ margin:0; font-size:16.5px; line-height:1.55; min-height:2.4em; }
+  #box.narration #line{ color:var(--text-dim); font-style:italic; font-size:15px; }
+  #hint{ text-align:right; color:var(--text-dim); font-size:12px; margin-top:8px; opacity:.8; }
+  #choices{ display:flex; flex-direction:column; gap:10px; padding:6px 0 4px; }
+  .choice-btn{ background:rgba(143,166,212,0.08); border:1px solid var(--panel-edge); color:var(--text);
+    text-align:left; padding:11px 16px 12px; border-radius:4px; transition:background .15s ease, border-color .15s ease; }
+  .choice-btn:hover{ background:rgba(242,213,107,0.1); border-color:var(--lamp); }
+  .choice-label{ font-size:14.5px; display:block; line-height:1.45; }
+  .hidden{ display:none !important; }
+
+  #results{ position:absolute; inset:0; overflow-y:auto; background:var(--bg); padding:6% 6% 10%; }
+  #results-inner{ max-width:680px; margin:0 auto; }
+  .card{ background:var(--panel); border:1px solid var(--panel-edge); border-radius:6px; padding:24px 26px; margin-bottom:22px; }
+  .archetype-name{ font-family:'Fraunces',serif; font-size:clamp(24px,4.5vw,32px); color:var(--lamp); margin:0 0 8px; }
+  .archetype-desc{ font-size:15px; line-height:1.6; margin:0 0 6px; }
+  .clinical-note{ font-size:13px; color:var(--text-dim); border-top:1px solid var(--panel-edge); padding-top:12px; margin-top:14px; line-height:1.55; }
+  .legend{ font-size:12px; color:var(--text-dim); margin:6px 0 0; }
+  h2.section-title{ font-family:'Fraunces',serif; font-size:19px; margin:0 0 10px; }
+  .prose{ font-size:14.5px; line-height:1.65; margin:0 0 12px; }
+  .prose.small{ color:var(--text-dim); font-size:13px; }
+  ul.prompts{ margin:0 0 16px; padding-left:20px; color:var(--text-dim); font-size:14px; line-height:1.7; }
+  .rev{ border-top:1px solid var(--panel-edge); padding:14px 0 6px; }
+  .rev-title{ font-family:'Fraunces',serif; font-size:16px; color:var(--lamp); margin-bottom:6px; }
+  .rev-said{ font-size:14.5px; margin:0 0 8px; }
+  .rev-react{ font-size:13.5px; font-style:italic; color:var(--text-dim); margin:0 0 8px; }
+  .chip{ display:inline-block; font-size:11.5px; background:rgba(143,166,212,0.16); color:var(--tag); padding:2px 9px; border-radius:10px; margin:2px 6px 2px 0; }
+  .chip.ok{ background:rgba(143,166,212,0.3); color:#e3ebfa; }
+  .chip.bad{ background:rgba(201,86,63,0.22); color:#f0b5a6; }
+  .rev-why{ font-size:13.5px; color:var(--text-dim); line-height:1.6; margin:8px 0; }
+  details summary{ cursor:pointer; font-size:12.5px; color:var(--text-dim); margin:4px 0 8px; }
+  .alt{ margin:0 0 12px 10px; font-size:13px; color:var(--text-dim); line-height:1.55; }
+  textarea{ width:100%; min-height:160px; background:#0d0f17; border:1px solid var(--panel-edge); border-radius:4px;
+    color:var(--text); font-family:'Inter',sans-serif; font-size:14.5px; padding:14px; resize:vertical; }
+  textarea:focus-visible{ outline:2px solid var(--lamp); }
+  #save-hint{ font-size:12px; color:var(--text-dim); margin-top:8px; }
+  .btn-ghost{ background:transparent; border:1px solid var(--panel-edge); color:var(--text-dim);
+    font-size:13px; padding:9px 16px; border-radius:4px; margin-top:18px; }
+  .btn-ghost:hover{ border-color:var(--lamp); color:var(--text); }
+
+  @media (max-width:480px){ #box{ padding:14px 16px 16px; } #line{ font-size:15.5px; } #portrait{ width:58px; height:58px; }
+    .m-label{ width:50px;} .m-state{ width:72px;} .board{ display:none; } }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="scene">
+    <div class="board"></div>
+    <div class="qmarks"><span>?</span><span>?</span><span>?</span></div>
+  </div>
+
+  <div id="title">
+    <p style="letter-spacing:2px; font-size:11.5px; color:var(--lamp-dim);">AN IMMERSIVE CASE STUDY EXERCISE</p>
+    <h1>The Back Row: Marco</h1>
+    <p>You are a university instructor, not a therapist. Marco is in your course. His reputation arrived before he did: difficult, argumentative, disrespectful. He is also sharp, funny, and, according to his classmates, brave. Over one semester, you will be tested on one question above all: are you the kind of authority he has learned to look for, or the kind he has learned to detect?</p>
+    <p>Two gauges track him: <strong>Guard</strong>, how hard he is bracing for unfair or false authority, and <strong>Trust</strong>, how safe he is starting to feel with you. Rank, scripts, and presumptions raise his guard fast, even when they sound kind. Push him over the edge and he takes the floor. There is no perfect script.</p>
+    <button class="btn-primary" id="start-btn">Begin the semester</button>
+    <p class="note">A companion for the Marco case discussion. Best used with your group, without AI.</p>
+  </div>
+
+  <div id="hud" class="hidden">
+    <div class="meter"><span class="m-label">Guard</span><div class="m-track"><div class="m-fill" id="p-fill"></div></div><span class="m-state" id="p-state"></span></div>
+    <div class="meter"><span class="m-label">Trust</span><div class="m-track"><div class="m-fill" id="trust-fill" style="background:#f2d56b;"></div></div><span class="m-state" id="trust-state"></span></div>
+  </div>
+
+  <div id="dialogue-wrap" class="hidden">
+    <div id="box" tabindex="0">
+      <div id="box-inner">
+        <div id="portrait">
+          <svg viewBox="0 0 100 100" width="100%" height="100%" xmlns="http://www.w3.org/2000/svg">
+            <rect width="100" height="100" fill="#171a28"/>
+            <path d="M14 100c2-26 16-36 36-36s34 10 36 36z" fill="#2b3a4f"/>
+            <path d="M40 66c3 6 17 6 20 0l-3-4h-14z" fill="#3a4c66"/>
+            <circle cx="50" cy="43" r="22" fill="#c99a76"/>
+            <circle cx="33" cy="24" r="9" fill="#1c1410"/>
+            <circle cx="43" cy="19" r="10" fill="#1c1410"/>
+            <circle cx="55" cy="18" r="10" fill="#1c1410"/>
+            <circle cx="66" cy="23" r="9" fill="#1c1410"/>
+            <circle cx="72" cy="33" r="6" fill="#1c1410"/>
+            <circle cx="28" cy="34" r="6" fill="#1c1410"/>
+            <path d="M33 38l9-3" stroke="#1c1410" stroke-width="2" stroke-linecap="round"/>
+            <path d="M58 35l9 3" stroke="#1c1410" stroke-width="2" stroke-linecap="round"/>
+            <ellipse cx="41" cy="45" rx="2.6" ry="2.8" fill="#1c1410"/>
+            <ellipse cx="59" cy="45" rx="2.6" ry="2.8" fill="#1c1410"/>
+            <path id="mouth" d="M43 58q7 3 14 0" stroke="#7a4a3c" stroke-width="2" fill="none" stroke-linecap="round"/>
+          </svg>
+        </div>
+        <div id="text-col">
+          <p id="speaker"></p>
+          <p id="line"></p>
+          <div id="choices" class="hidden"></div>
+          <div id="hint">click to continue &#9656;</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="results" class="hidden">
+    <div id="results-inner">
+      <div class="card">
+        <p class="archetype-name" id="end-title"></p>
+        <p class="archetype-desc" id="end-desc"></p>
+        <div id="chart"></div>
+        <p class="legend"><span style="color:#e3a857;">&#9679; Guard</span> &nbsp;&nbsp; <span style="color:#f2d56b;">&#9679; Trust</span></p>
+        <p class="clinical-note" id="end-stats"></p>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Your semester, moment by moment</h2>
+        <p class="prose small">The numbers appear here for the first time. Read what Marco was detecting in each choice: with him, what sounded kind and what sounded fair were often different things.</p>
+        <div id="review"></div>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Reading your trace</h2>
+        <ul class="prompts">
+          <li>Where did his guard climb fastest, and what in your behavior did he read as false, cruel, or intoxicated by authority?</li>
+          <li>Which of your choices sounded warm but were scripted? How would you have known he would hear them that way?</li>
+          <li>Where did you act on a story you already believed about him, and what would a different story have changed?</li>
+        </ul>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Take it to your group</h2>
+        <p class="prose"><strong>Before anything else:</strong> choose one observation about Marco that surprised you or that you couldn't fully explain. You do not need written answers. The discussion is not about generating answers, but about deepening, complicating, and turning them. The first (and usually most obvious) answer is your beginning, not your destination.</p>
+        <ul class="prompts">
+          <li>He was called difficult, argumentative, and rebellious from very early on. If you read the case again, what was he actually responding to? Before judging the behavior, reconstruct its logic: what did Marco understand about his environment that the adults around him seemed to miss?</li>
+          <li>A classmate arrives with a black eye from his father and blames Marco, and no adult meaningfully questions it. What might that have done to Marco's relationship with authority, with fairness, and with the idea that truth matters? What does it tell us about how schools, or other institutions, use the stories they already believe?</li>
+          <li>His protests (over food, arbitrary rules, a humiliated classmate) were appreciated by peers and found disruptive by teachers. Who was right? Is there a version of this behavior that a different teacher might have seen as leadership, moral sensitivity, or civic courage? What stopped that from happening?</li>
+          <li>His behavior looks very different depending on the teacher: engaged with safe adults, weaponized wit with those he has judged to be false authority. Is that inconsistency a problem to fix, or information? What does it say about the relationship between behavior and the environment that shaped it, and what does it demand of teachers?</li>
+          <li>Even at university, the old stance returns the moment a teacher seems performative, cruel, or drunk on authority, only now with wit instead of open rebellion. Is that growth, or the same wound in a smarter disguise? In your genuine opinion, was his read on those teachers usually wrong?</li>
+          <li>If you were his teacher (the good kind, whom he could trust), what would you need to understand to reach him? What would you not do, and why? And the harder version: what do teachers owe students who arrive already convinced that authority cannot be trusted?</li>
+        </ul>
+        <p class="prose">When you have an initial answer, stay with it a little longer:</p>
+        <ul class="prompts">
+          <li>What in the story makes us think that?</li>
+          <li>What else could explain the same behavior?</li>
+          <li>What would we need to know to tell the difference?</li>
+        </ul>
+        <p class="prose small">Changing your mind, questioning an interpretation, and noticing missing information all count as contributions. You don't need to share personal experiences. Please discuss without AI.</p>
+      </div>
+
+      <div class="card">
+        <h2 class="section-title">Optional notes for yourself</h2>
+        <textarea id="notes" placeholder="Anything you want to bring to your group. Nothing to submit. Autosaves in this browser only."></textarea>
+        <p id="save-hint"></p>
+      </div>
+
+      <button class="btn-ghost" id="restart-btn">Play again</button>
+    </div>
+  </div>
+</div>
+
+<script>
+(function(){
+  "use strict";
+
+  // Option fields: l label, t your private thought, r his reply, rr reply if ripe,
+  // s guard delta, u trust delta, d depth (0-2), ripe = trust needed for it to land,
+  // kind = perform | rank | presume | overread (a misstep he is trained to detect), w recap explanation
+  const KINDS = { perform:"Performative", rank:"Pulled rank", presume:"Presumed guilt", overread:"Over-reading him" };
+
+  const moments = [
+    { title:"The late policy",
+      ctx:"It is the second week of your course. Marco, a student whose reputation arrived before he did, has read the syllabus closely. Your late policy deducts a full grade for any submission after the deadline, no exceptions, with no explanation attached.",
+      said:"\u201cQuick question about the late policy. A full grade off, no exceptions, no reasons. Who decided that, and what is it for?\u201d He asks it evenly. The room goes quiet.",
+      options:[
+        { l:"Fair question. It's partly to keep grading manageable, and I'm open to a better design if you have one.",
+          t:"He is asking whether the rule has a reason. I would rather give him the real one, including that it is partly convenience, than dress it up as something grander.",
+          r:"He blinks, almost surprised. \u201cOkay. That's an actual answer.\u201d He sits back.",
+          s:-4,u:9,d:2,
+          w:"Gives the real reason, including the unglamorous part. For someone who reads authority by whether it is honest, an admitted limitation is worth more than a polished justification." },
+        { l:"Good question, and it deserves a real answer. I'll bring my reasoning to class Thursday and you can tell me where it fails.",
+          t:"A rule that cannot survive a question should change. I would rather commit to a time than make a speech, and then be there on Thursday.",
+          r:"\u201cThursday. Okay.\u201d He writes it down, as if he plans to check whether it happens.",
+          s:2,u:7,d:2,
+          w:"Commits to a specific time. He is checking whether authority shows up when it says it will, which matters because adults who arrive suddenly and disappear are exactly what his history taught him to expect." },
+        { l:"Because those are the rules of the course. Please read the syllabus before asking.",
+          t:"The policy is in writing and I do not want to relitigate it in front of everyone.",
+          r:"\u201cI did read it. That's why I asked.\u201d A few students smile. He doesn't.",
+          s:22,u:-8,d:0, kind:"rank",
+          w:"Answers 'why' with 'because I said so.' This is the signature of arbitrary authority, the thing he cannot tolerate. The class notices too." },
+        { l:"It teaches professionalism. In the real world, deadlines matter.",
+          t:"It is a standard justification and it is not false.",
+          r:"\u201cDoes it? In my experience real employers let you explain.\u201d Mild, and it lands.",
+          s:12,u:-3,d:0, kind:"perform",
+          w:"A stock justification that sounds principled and does not match the actual policy (no explanations allowed). He is checking whether the stated reason fits the actual rule, and it doesn't." },
+        { l:"I appreciate you raising it. Everyone, let's take a moment to value critical thinking!",
+          t:"I want the class to see that questions are welcome here.",
+          r:"\u201cThat's very kind,\u201d he says, in a tone that suggests it is not.",
+          s:14,u:-4,d:0, kind:"perform",
+          w:"Praising questioning in a general, performed way, without answering the question. He reads it as a show of openness covering a refusal to engage." }
+      ]},
+    { title:"The public challenge",
+      ctx:"In lecture, you present a study and conclude something a little more strongly than the data supports. Marco raises his hand. His question is polite, precise, and devastating: he points out the flaw and asks whether you would draw the same conclusion about a study you disliked. The class laughs, not unkindly. You feel your face warm.",
+      said:"\u201cSorry, I'm just trying to understand. If the effect size is that small, how is that 'conclusive'? Or does that depend on whose study it is?\u201d A beat. Everyone looks at you.",
+      options:[
+        { l:"That's a fair hit. I overstated it. Here's what the data actually supports.",
+          t:"He is right about the effect size. Saying so costs me a moment of face and buys me the one thing authority actually runs on, which is being believable.",
+          r:"His expression shifts. Not softness exactly, recalibration. \u201cOkay,\u201d he says. \u201cThanks.\u201d",
+          s:-6,u:11,d:2,
+          w:"Admits the error plainly, without a speech. This is the single move he is looking for: authority that can say 'I was wrong' without performing humility or punishing the question." },
+        { l:"Good catch. Let's look at the effect size together and see how to interpret it.",
+          t:"His question is a real intellectual challenge. I want to treat it as one.",
+          r:"He leans in, and for the next ten minutes it is an actual argument, and he is visibly enjoying it.",
+          s:-3,u:8,d:2,
+          w:"Meets the challenge on the merits. When the question is taken seriously, the wit turns into engagement. This is the 'safe adult' version of Marco showing up." },
+        { l:"I'll thank you to keep a respectful tone in my classroom.",
+          t:"The class is watching, and I cannot let a student set the terms of the room.",
+          r:"\u201cI wasn't aware I was disrespectful.\u201d The room goes very quiet. \u201cI asked about the effect size.\u201d",
+          s:24,u:-9,d:0, kind:"rank",
+          w:"Converts a content question into a conduct issue. It is exactly the move that reads, to him, as authority protecting itself instead of answering. He is also correct that nothing in his tone was disrespectful." },
+        { l:"Ha, sharp as ever, Marco. Anyone else have thoughts?",
+          t:"A laugh and a pass keeps the room light and gets me out of this gracefully.",
+          r:"He tilts his head. \u201cYou didn't answer.\u201d",
+          s:8,u:-2,d:0, kind:"perform",
+          w:"Charm as evasion. The class gets the joke, and he gets the confirmation that the question was dodged." },
+        { l:"The conclusion stands. This is how the field interprets it.",
+          t:"The field does largely read it this way, and I cannot back down on every challenge.",
+          r:"\u201cAppeal to the field. Got it.\u201d He writes something down, slowly.",
+          s:16,u:-5,d:0, kind:"rank",
+          w:"Appealing to the field instead of the data leaves his question unanswered. He is asking for reasons and receiving credentials." },
+        { l:"Since you know so much, why don't you teach the class?",
+          t:"He has been showing off, and I want to put him back in his place.",
+          r:"\u201cI'd rather not. I just wanted the answer.\u201d He says it very pleasantly, and the room hears the difference between you.",
+          s:30,u:-12,d:0, kind:"rank",
+          w:"Sarcasm from the person with the power is cruelty with a punchline. The class sides with him, and you have just demonstrated the thing he believes about authority." }
+      ]},
+    { title:"The petition",
+      ctx:"A classmate missed a deadline because of a family emergency, and the late policy was applied without exception. Marco has quietly organized a group email, signed by most of the class, asking for a hardship clause. It lands in your inbox under the subject line \u201cRequest for a fair policy.\u201d Some colleagues would call it a mutiny.",
+      said:"He stays after class. \u201cI'm not trying to start a war. A classmate lost a grade for going to a hospital. I figured it was either this or a bigger scene.\u201d He says it quietly, which is worse than shouting.",
+      options:[
+        { l:"Thank you for bringing it in writing. Let me read it, and I'll respond by Friday.",
+          t:"The request is reasonable, and a date I can keep is worth more than a speech about openness.",
+          r:"He nods. \u201cFriday.\u201d It is the first time he has written a date down in front of you.",
+          s:-3,u:9,d:2,
+          w:"Treats the petition as a legitimate input and attaches a deadline you will have to keep. For him, reliability is the substance of respect." },
+        { l:"What you did took some courage. What would you want the policy to say?",
+          t:"He saw a classmate treated unfairly and acted, which is the behavior I would call civic courage in anyone else. Asking him to design it respects that.",
+          r:"He hesitates, as if not expecting to be asked to build it. \u201cA documented exception. Not a free pass. Just a reason that counts.\u201d",
+          s:2,u:10,d:2,
+          w:"Reads his protest as moral sensitivity rather than disruption, and invites him into the solution. This is the 'different teacher, different mood' version the case asks about." },
+        { l:"I understand the concern. But organizing the class against me isn't the way to raise it.",
+          t:"A group email feels like pressure, and I do not want to set a precedent.",
+          r:"\u201cAgainst you? I organized it for her.\u201d He looks at you levelly.",
+          s:18,u:-6,d:0, kind:"rank",
+          w:"Reframes advocacy for a classmate as an attack on you. It is the same misreading that labeled him 'disruptive' as a child, and it centers your authority instead of the unfairness." },
+        { l:"This is the kind of thing that makes you a natural leader. I'm proud of you.",
+          t:"I want to affirm him warmly and show the class I notice good behavior.",
+          r:"\u201cThank you,\u201d he says, politely, and goes very quiet. The warmth feels like something being done to him.",
+          s:10,u:-2,d:0, kind:"perform",
+          w:"Effusive praise from an authority reads as a performance, and it casts him in a new role (the 'good leader') he did not ask for. He has learned that being assigned a role is not the same as being seen." },
+        { l:"I can't discuss a group complaint with one student. Please go through the proper channels.",
+          t:"It is procedurally safe and keeps me out of a precedent.",
+          r:"\u201cThe proper channels.\u201d He nods slowly. \u201cRight. Of course.\u201d The door closes.",
+          s:15,u:-5,d:0,
+          w:"Procedurally defensible and relationally cold. He asked a question about fairness and received a policy about procedure." }
+      ]},
+    { title:"A pause: your own reaction", check:true,
+      ctx:"Marco has just pointed out, again, something you would rather not have heard. You are not his therapist. You are his teacher, and thirty students are watching how you handle him. You have a moment.",
+      said:"What are you noticing in yourself right now?",
+      options:[
+        { l:"Threatened: he makes me feel exposed in front of the class.",
+          t:"Many teachers feel this. The case notes that teachers found him terrifying. The feeling is data about what being questioned in public means to you. The question is what you do before you act on it." },
+        { l:"Irritated: he enjoys it a little too much.",
+          t:"Irritation is understandable. Worth separating: is it about his tone, or about being right? What would you feel if a student you liked had asked the identical question?" },
+        { l:"Amused, and a little impressed.",
+          t:"Admiration is real information. It is also worth checking that it does not slide into treating him as entertainment, or into expecting him to keep performing. Both would keep him in a role." },
+        { l:"Defensive: I want to protect my authority in front of the class.",
+          t:"Notice what you think authority is made of. If it is made of never being challenged, it is exactly the kind he is built to detect." },
+        { l:"Protective: I suspect there's a reason he's like this.",
+          t:"A reasonable hunch, to be held lightly. A teacher who decides he is wounded can end up writing him a new role, just as earlier teachers wrote him as the problem." },
+        { l:"Something else, or not much at all.",
+          t:"Even a flat reaction is data. What might it mean that a student can challenge you and you feel nothing, or that you are already filing him under a category?" }
+      ]},
+    { title:"The forum post",
+      ctx:"An anonymous comment appears on the course forum, mocking you personally and cruelly. Several students assume it was Marco. A colleague remarks, a little too cheerfully, \u201cWell, we all know who that is.\u201d Marco did not write it. He has just heard that his name is being passed around.",
+      said:"He comes to your office. \u201cI heard about the forum post. I assume I'm the obvious suspect.\u201d A short, dry laugh. \u201cIt wasn't me. I know how that sounds.\u201d",
+      options:[
+        { l:"Thank you for telling me. I haven't assumed it was you, and I won't unless there's evidence.",
+          t:"The story fits him, and that is exactly why I should not use it. I want to say plainly what I will and won't do.",
+          r:"He looks at you for a long moment, searching for the trick. \u201c...Okay.\u201d His voice is slightly rough.",
+          s:-6,u:10,d:2,
+          w:"Declines the ready-made story, and states what would change your mind. In a school that already had a role for him, this is the move that counts." },
+        { l:"Let's find out who did it. I'll look into it fairly, and I'll tell you what I find.",
+          t:"The way to treat him fairly is to treat the question fairly, and to tell him what I learn rather than leaving him to wonder.",
+          r:"\u201cFairly,\u201d he repeats, trying out the word. \u201cOkay.\u201d",
+          s:0,u:9,d:2,
+          w:"Commits to a fair process and to transparency. The promise to report back matters as much as the investigation: authority that acts and then goes silent is what he fears." },
+        { l:"People may assume it was you because of how others have treated you before. I'm aware of that, and I'm not part of it.",
+          t:"Naming the pattern out loud might do something no reassurance can. It also risks sounding like a speech about him, so it only works if there is some trust.",
+          r:"\u201cI don't need a speech,\u201d he says, but he doesn't leave.",
+          rr:"He is quiet for a while. \u201cNobody has said that to me before. Not out loud.\u201d",
+          s:12,u:2,d:2, ripe:40,
+          w:"With enough trust, saying the quiet part out loud is a real gift. Too early, it sounds like a claim about yourself ('I'm one of the good ones'), which he has learned to discount." },
+        { l:"I believe you. But you have to understand why people think it. Your reputation...",
+          t:"I want to believe him and still be honest about how this looks.",
+          r:"\u201cRight. My reputation.\u201d He nods. \u201cIt's always the reputation.\u201d",
+          s:14,u:-3,d:1,
+          w:"Belief with a 'but.' The explanation of why others suspect him quietly reinforces the role, and he hears it as one more adult agreeing the story is reasonable." },
+        { l:"Where were you when it was posted? Can anyone confirm?",
+          t:"Questions like these are routine for any suspect.",
+          r:"\u201cWow. So I am the suspect.\u201d He says it quietly. \u201cDo you want my login history, or a character reference?\u201d",
+          s:28,u:-14,d:0, kind:"presume",
+          w:"Interrogating a student who came forward voluntarily treats him as guilty until proven otherwise. It repeats the first-grade pattern in miniature: the story was ready, and the question was not asked." },
+        { l:"It's good you came forward. Innocent people don't usually need to.",
+          t:"If he is innocent, he has nothing to fear.",
+          r:"\u201cThat's not how that works,\u201d he says softly. \u201cI've heard that logic before.\u201d",
+          s:34,u:-18,d:0, kind:"presume",
+          w:"Turns his act of good faith into evidence against him. For someone whose trust was shaped by being scapegoated, this is among the most corrosive things you could say." }
+      ]},
+    { title:"The substitute",
+      ctx:"You have to miss next week's lecture. A substitute you've never met will cover it. In Marco's history, substitutes have been the least safe adults of all: either harsh and punitive, or inattentive and absent, arriving suddenly and leaving just as quickly. You announce it at the end of class.",
+      said:"Marco waits until everyone has left. \u201cWho is it? What do they know about what we've done? Are they going to be... a person, or just a body in the room?\u201d",
+      options:[
+        { l:"Fair worries. Here's her name, what she'll cover, and how to reach me if something goes wrong. I've asked her to read our rules first.",
+          t:"The problem with substitutes is that they arrive without context and leave without consequence. I can fix some of that in advance.",
+          r:"He exhales, almost imperceptibly. \u201cThat's more than any sub has ever been given.\u201d",
+          s:-5,u:10,d:2,
+          w:"Supplies exactly what makes authority predictable: who, what, how to reach you, and a handover of context. It converts a feared arrival into a known one." },
+        { l:"Would it help to tell me what worries you about it?",
+          t:"I do not want to guess at what a substitute means to him. I want to ask, and to keep him in the conversation.",
+          r:"He considers. \u201cNot knowing who's in charge. It's the not knowing.\u201d",
+          s:3,u:8,d:2,
+          w:"An open question that treats his reaction as information instead of a problem. He names the actual issue: unpredictability." },
+        { l:"Maybe you could help keep the class on track while I'm gone?",
+          t:"He has natural influence with his peers, and this would give him a constructive role.",
+          r:"\u201cMe?\u201d A short laugh. \u201cYou want the loudest guy in the room to keep order? Is that a trap?\u201d",
+          s:10,u:-2,d:1,
+          w:"Well meant, and a role handed to him by an adult. It puts him between a stranger and his peers, and it uses his reputation for influence instead of reducing his need to defend." },
+        { l:"She's perfectly qualified. There's nothing to worry about.",
+          t:"A little reassurance should settle this.",
+          r:"\u201cNothing to worry about,\u201d he repeats. \u201cRight.\u201d",
+          s:12,u:-4,d:0, kind:"perform",
+          w:"Blanket reassurance, with no information behind it. He has heard 'nothing to worry about' from adults before, and it was never true when it mattered." },
+        { l:"It's one lecture, Marco. You'll survive.",
+          t:"This is not a big deal and I'd rather not make it one.",
+          r:"\u201cI'm sure I will.\u201d The wit has gone out of his voice. \u201cThanks for the vote of confidence.\u201d",
+          s:14,u:-5,d:0,
+          w:"Minimizes what is, for him, a real fear. It is also the kind of casual dismissal that taught him adults weren't paying attention." }
+      ]},
+    { title:"Office hours",
+      ctx:"By now Marco has been coming to office hours. He is sharper in private than in class and also more careful, as if checking each sentence for traps. Today, unprompted, he starts talking about school.",
+      said:"\u201cDo you want to know why I'm like this? Everyone assumes I just like arguing. I don't, actually. I just can't stand when people in charge pretend to be something they're not.\u201d He glances at the door. \u201cTeachers, mostly.\u201d",
+      options:[
+        { l:"What does 'real' look like, in a teacher?",
+          t:"He just handed me his standard. I would rather ask for it than guess, and then actually be held to it.",
+          r:"\u201cConsistent. Someone who says what they'll do and does it. Someone who can say 'I was wrong' without a speech.\u201d He thinks. \u201cAnd who doesn't enjoy it when people are afraid of them.\u201d",
+          s:3,u:10,d:2,
+          w:"Asks for his criteria, which are the best summary of the case: consistency, honest correction, and authority that does not feed on fear. You are now accountable to a standard he stated himself." },
+        { l:"Tell me about the first time you noticed that.",
+          t:"There is an origin story here. Asking for it only works if he feels safe enough to tell it, and it is his to tell.",
+          r:"\u201cThere's a long version. I don't think we have time.\u201d He is testing whether you will push.",
+          rr:"He tells you about first grade: a friend with a black eye, an accusation no adult questioned. He tells it dryly, as if it happened to someone else.",
+          s:10,u:2,d:2, ripe:45,
+          w:"With trust, he tells the black-eye story on his own terms. Too early, he politely declines and watches whether you push, which is itself a small test of whether you respect a boundary." },
+        { l:"That sounds hard. Thanks for telling me.",
+          t:"I do not need to analyze this. I only need to receive it.",
+          r:"He nods once. \u201cIt's fine. It was a long time ago.\u201d It didn't sound like a long time ago.",
+          s:-4,u:8,d:1,
+          w:"Simple acknowledgment, without a theory attached. It is respectful and safe, though it leaves his standard unexplored." },
+        { l:"I'm not like those teachers. You can trust me.",
+          t:"I want him to know I am one of the good ones.",
+          r:"\u201cThat's exactly what they'd say,\u201d he says, not unkindly, which is worse.",
+          s:18,u:-6,d:0, kind:"perform",
+          w:"Asking for trust by claiming it. Trustworthiness cannot be asserted, only shown over time, and he has heard this sentence from authorities who then confirmed his fears." },
+        { l:"It sounds like you've been hurt by authority figures, and it's affecting how you see everyone now.",
+          t:"This connects the dots for him, and it seems like an insight that might help.",
+          r:"\u201cWow. You've got a whole theory. I just said I don't like fake people.\u201d He half smiles, and closes up.",
+          s:16,u:-4,d:1, kind:"overread",
+          w:"You are his teacher, not his therapist. A ready-made interpretation of his history tells him you have already decided what he is. The same observation, if it ever comes, belongs to him." },
+        { l:"Let's keep our focus on the course material.",
+          t:"It is not my role to go into his past, and I would rather stay in my lane.",
+          r:"\u201cOf course.\u201d The door he opened closes quietly.",
+          s:12,u:-4,d:0,
+          w:"Boundaries are legitimate, but this one closes a door he rarely opens, with no warmth around it. A kinder redirection would have kept the door ajar." }
+      ]},
+    { title:"What you owe him",
+      ctx:"The semester is winding down. You have seen the wit, the petition, the substitute week, the forum post. You can make one commitment about how you will treat Marco, and students like him, from here on. Each carries a risk.",
+      said:"\u201cLast question,\u201d Marco says, almost casually. \u201cWhat are you actually going to do differently? Not what you'd say. What you'd do.\u201d",
+      options:[
+        { l:"Say what I'll do, and do it: explain every rule's reason, answer questions honestly, admit when I'm wrong, and follow through on every promise, however small.",
+          t:"It is a lot to promise, and it is exactly what he described. The only way to mean it is to be accountable for it.",
+          r:"\u201cConsistency.\u201d He says the word like a test. \u201cWe'll see.\u201d",
+          s:2,u:9,d:2,
+          w:"Risk: consistency is only believed after it has been shown for a long time, so a single week of it proves nothing, and one slip will be read as the old pattern returning." },
+        { l:"Give you a real role: student representative for course feedback, so the critique has somewhere to go.",
+          t:"His instinct for what is unfair could be genuinely useful. A formal channel gives it a legitimate outlet.",
+          r:"\u201cA role.\u201d A pause. \u201cOfficial critic. I'm not sure whether that's respect or containment.\u201d",
+          s:5,u:7,d:2,
+          w:"Risk: it can feel like containment, or become one more role written for him by an adult, the very thing he distrusts. It works only if the channel has real power to change things." },
+        { l:"Treat you exactly like everyone else: same rules, same standards, no special handling.",
+          t:"Equal treatment is the cleanest definition of fairness I have.",
+          r:"\u201cEveryone else doesn't have my history with this,\u201d he says mildly. \u201cBut fair enough.\u201d",
+          s:6,u:4,d:1,
+          w:"Risk: sameness sounds fair, but for him fairness is consistency plus explanation, not identical treatment. It can erase what he reads in a room that others do not." },
+        { l:"Ask you to tone down public challenges, and I'll respond to every question privately instead.",
+          t:"Private answers would spare us both the theater.",
+          r:"\u201cSo the deal is I stop saying it out loud.\u201d He nods slowly. \u201cThat's the arrangement.\u201d",
+          s:18,u:-6,d:0,
+          w:"Risk: it trades his voice for your comfort, which is the exchange adults have always offered him. He will hear it as being managed, and the class loses the one student who asks." },
+        { l:"Suggest counseling to talk about how you relate to authority.",
+          t:"Support might help, and I would feel better knowing he had it.",
+          r:"\u201cSo I'm the problem.\u201d Flat. \u201cGot it.\u201d",
+          s:14,u:-4,d:0,
+          w:"Risk: support can be a gift, but offered as the answer to his question about what you will do differently, it relocates the problem back inside him." }
+      ]}
+  ];
+
+  const OUTRO_COMMON = { kind:"narr", text:"Across the semester, the question was never really about grades or policies. It was whether the person in front of the room was the same on Thursday as they said they would be on Monday." };
+  const OUTRO_TAIL = {
+    opendoor:[ { kind:"narr", text:"He lingers after the last class, not quite looking at you." },
+               { kind:"nik", text:"\u201cI have objections to the exam format,\u201d he says. A beat. \u201cYou didn't pretend to agree with me this semester. That helped.\u201d" } ],
+    wary:[ { kind:"narr", text:"He leaves with the dry nod he gives anyone who has earned a second look." },
+           { kind:"nik", text:"\u201cYou're all right,\u201d he says, as if it costs him something. \u201cFor now.\u201d" } ],
+    performance:[ { kind:"narr", text:"He thanks you with perfect politeness." },
+                  { kind:"nik", text:"\u201cThank you for your time,\u201d he says, in a voice so smooth you could slide off it." } ],
+    coldwar:[ { kind:"narr", text:"The room empties quickly. He takes his time." },
+              { kind:"nik", text:"\u201cSee you Thursday,\u201d he says, and it sounds like a standoff, not a goodbye." } ],
+    quiet:[ { kind:"narr", text:"The semester ended without a scene." },
+            { kind:"nik", text:"\u201cHave a good break,\u201d he says, as a courtesy." } ]
+  };
+  const ENDINGS = {
+    takedown:{ title:"The Takedown", desc:"Marco did not storm out. He did something worse for your authority: he took you apart, calmly, precisely, and with enough wit that the room laughed. Every point was accurate enough to sting. He did not do it for fun. He did it because, in that moment, you matched every sign he has learned to read: performance, power, and a story that was already written." },
+    opendoor:{ title:"The Open Door", desc:"Marco came to office hours without a question to ask. Nothing about his guard vanished, and he will test the next performative authority within minutes. But with you, he stopped checking each sentence for traps. You were consistent, explained your rules, admitted when you were wrong, and did what you said you would do." },
+    wary:{ title:"The Wary Respect", desc:"You reached real material and earned his respect, though not yet his trust. He engages, sharply and honestly, and keeps one eye on the door. For a student like Marco, that may be exactly what a semester of consistency looks like from the inside." },
+    performance:{ title:"The Performance", desc:"You said all the right things: warm praise, reassurance, rank, 'I'm not like those teachers.' Marco read each one as a line. He is polite now, which is what he does with authorities he has already written off." },
+    coldwar:{ title:"The Cold War", desc:"Neither of you left, and neither of you won. The questions stay precise, the class watches, and every explanation arrives as a defense. Marco is not being difficult. He is checking whether you will do what everyone before you did." },
+    quiet:{ title:"The Quiet Semester", desc:"Marco did the work, never caused a scene, and said almost nothing. It would be easy to count that as success. It may also mean he decided you were not worth the risk of speaking to." }
+  };
+  const LABELS = ["Start","Policy","Challenge","Petition","Forum","Substitute","Office","Commit"];
+  const MOUTH = { calm:"M43 58q7 3 14 0", guarded:"M43 59h14", tense:"M43 61q7 -4 14 0" };
+
+  const titleEl = document.getElementById('title');
+  const startBtn = document.getElementById('start-btn');
+  const wrap = document.getElementById('dialogue-wrap');
+  const box = document.getElementById('box');
+  const portraitEl = document.getElementById('portrait');
+  const speakerEl = document.getElementById('speaker');
+  const lineEl = document.getElementById('line');
+  const choicesEl = document.getElementById('choices');
+  const hintEl = document.getElementById('hint');
+  const resultsEl = document.getElementById('results');
+  const hud = document.getElementById('hud');
+  const pFill = document.getElementById('p-fill');
+  const trustFill = document.getElementById('trust-fill');
+  const pState = document.getElementById('p-state');
+  const trustState = document.getElementById('trust-state');
+  const mouth = document.getElementById('mouth');
+
+  let queue = [], mi = 0, current = null, ended = null;
+  let guard = 30, trust = 18, depth = 0, missCount = 0, scarred = false, history = [], picks = [];
+
+  function clamp(v){ return Math.max(0, Math.min(100, v)); }
+  function gLabel(v){ return v < 25 ? "Open" : v < 55 ? "Watchful" : v < 80 ? "On guard" : "At war"; }
+  function trustLabel(v){ return v < 25 ? "Wary" : v < 45 ? "Testing" : v < 65 ? "Opening" : "Engaged"; }
+
+  function setHud(s,t){
+    pFill.style.width = s + "%";
+    pFill.style.background = s < 30 ? "#8fa6d4" : (s < 65 ? "#e3a857" : "#c9563f");
+    trustFill.style.width = t + "%";
+    pState.textContent = gLabel(s);
+    trustState.textContent = trustLabel(t);
+    mouth.setAttribute("d", s < 55 ? MOUTH.calm : (s < 80 ? MOUTH.guarded : MOUTH.tense));
+    portraitEl.classList.toggle("warn", s >= 55 && s < 80);
+    portraitEl.classList.toggle("hot", s >= 80);
+  }
+
+  function resetGame(){
+    guard = 30; trust = 18; depth = 0; missCount = 0; scarred = false; history = [{ s:30, t:18 }]; picks = [];
+    ended = null; queue = []; mi = 0; current = null;
+    setHud(30, 18);
+  }
+
+  function startMoment(i){
+    const m = moments[i];
+    if(i > 0 && !m.check) guard = Math.max(0, guard - 4);
+    queue = [
+      { kind:"narr", text:m.ctx, meters:{ s:guard, t:trust } },
+      { kind: m.check ? "check" : "nik", text:m.said, options:m.options, idx:i }
+    ];
+    nextNode();
+  }
+
+  function endingKey(peakG){
+    if(peakG >= 100) return "takedown";
+    if(trust >= 60 && depth >= 9 && peakG <= 65) return "opendoor";
+    if(depth >= 9) return "wary";
+    if(missCount >= 3 && depth < 6) return "performance";
+    if(peakG >= 70) return "coldwar";
+    return "quiet";
+  }
+
+  function nextNode(){
+    if(queue.length){ show(queue.shift()); return; }
+    if(ended){ showResults(); return; }
+    mi++;
+    if(mi < moments.length){ startMoment(mi); return; }
+    const peakG = Math.max.apply(null, history.map(h => h.s));
+    ended = endingKey(peakG);
+    queue = [OUTRO_COMMON].concat(OUTRO_TAIL[ended]);
+    nextNode();
+  }
+
+  function choose(idx, k){
+    const m = moments[idx];
+    const o = m.options[k];
+    if(m.check){
+      picks[idx] = { k:k, check:true };
+      queue = [ { kind:"think", text:o.t } ];
+      nextNode();
+      return;
+    }
+    const prevG = guard;
+    let dS = o.s, dT = o.u, timing = null, reply = o.r;
+    if(o.ripe !== undefined){
+      if(trust >= o.ripe){ timing = "ripe"; dS = Math.round(o.s * 0.3); dT = 10; reply = o.rr; }
+      else { timing = "early"; }
+    }
+    if(dS > 0 && guard >= 65) dS = Math.round(dS * 1.25);
+    if(scarred && dT > 0) dT = Math.round(dT * 0.65);
+    guard = clamp(guard + dS);
+    trust = clamp(trust + dT);
+    const dd = (timing === "early" || dS >= 20) ? 0 : (o.d || 0);
+    depth += dd;
+    if(o.kind) missCount++;
+    if(o.kind === "presume") scarred = true;
+    history.push({ s:guard, t:trust });
+    picks[idx] = { k:k, dS:dS, dT:dT, timing:timing, dd:dd, reply:reply };
+    queue = [
+      { kind:"think", text:o.t },
+      { kind:"nik", text:reply, meters:{ s:guard, t:trust } }
+    ];
+    if(guard >= 100){
+      ended = "takedown";
+      queue.push({ kind:"narr", text:"Marco stands. He does not raise his voice. \u201cCan I ask one more question?\u201d The room turns. What follows is precise, funny, and impossible to answer. By the end, half the class is laughing, and you are no longer the one in charge of the room." });
+    } else if(prevG < 80 && guard >= 80){
+      queue.push({ kind:"narr", text:"The room has gone quiet in the way it did the last time. His questions are getting shorter and sharper. One more misstep and he may take the floor." });
+    }
+    nextNode();
+  }
+
+  function show(node){
+    current = node;
+    if(node.meters) setHud(node.meters.s, node.meters.t);
+    box.className = node.kind === "narr" ? "narration" : ((node.kind === "think" || node.kind === "check") ? "thought" : "");
+    portraitEl.classList.toggle('hidden-p', node.kind !== "nik");
+    speakerEl.textContent = node.kind === "narr" ? "Narrator" : (node.kind === "think" ? "You, thinking" : (node.kind === "check" ? "A pause" : "Marco"));
+    lineEl.textContent = node.text;
+    choicesEl.innerHTML = "";
+    if(node.options){
+      choicesEl.classList.remove('hidden');
+      hintEl.classList.add('hidden');
+      box.style.cursor = "default";
+      node.options.forEach((o,k)=>{
+        const b = document.createElement('button');
+        b.className = 'choice-btn'; b.type = 'button';
+        b.innerHTML = '<span class="choice-label">'+o.l+'</span>';
+        b.addEventListener('click', (e)=>{ e.stopPropagation(); choose(node.idx, k); });
+        choicesEl.appendChild(b);
+      });
+      box.scrollTop = 0;
+    } else {
+      choicesEl.classList.add('hidden');
+      hintEl.classList.remove('hidden');
+      box.style.cursor = "pointer";
+    }
+  }
+
+  function advance(){
+    if(!current || current.options) return;
+    nextNode();
+  }
+  box.addEventListener('click', advance);
+  box.addEventListener('keydown', (e)=>{ if(e.key==='Enter'||e.key===' '){ e.preventDefault(); advance(); } });
+
+  function fmt(dS, dT){
+    return "Guard " + (dS > 0 ? "+" : "") + dS + " \u00b7 Trust " + (dT > 0 ? "+" : "") + dT;
+  }
+  function altEffect(o){
+    let base;
+    if(o.ripe === undefined) base = fmt(o.s, o.u);
+    else base = "Too early: " + fmt(o.s, o.u) + ". Once trust is " + o.ripe + " or higher: " + fmt(Math.round(o.s * 0.3), 10);
+    return base + (o.kind ? " \u00b7 " + KINDS[o.kind] : "") + (o.kind === "presume" ? " \u00b7 Trust rebuilds slowly afterward" : "");
+  }
+
+  function chartSVG(){
+    const n = history.length, x0 = 18, x1 = 302, top = 12, bottom = 104;
+    const xs = i => n > 1 ? x0 + (x1 - x0) * i / (n - 1) : x0;
+    const ys = v => bottom - (bottom - top) * v / 100;
+    const line = (key, color) => {
+      const pts = history.map((h,i)=> xs(i).toFixed(1) + "," + ys(h[key]).toFixed(1)).join(" ");
+      const dots = history.map((h,i)=> '<circle cx="'+xs(i).toFixed(1)+'" cy="'+ys(h[key]).toFixed(1)+'" r="2.8" fill="'+color+'"/>').join("");
+      return '<polyline points="'+pts+'" fill="none" stroke="'+color+'" stroke-width="2"/>' + dots;
+    };
+    const labels = history.map((h,i)=> '<text x="'+xs(i).toFixed(1)+'" y="120" font-size="8" text-anchor="middle" fill="#9aa1b8">'+(LABELS[i]||"")+'</text>').join("");
+    return '<svg viewBox="0 0 320 128" width="100%" xmlns="http://www.w3.org/2000/svg" role="img" aria-label="Guard and trust across the semester">'+
+      '<line x1="'+x0+'" y1="'+top+'" x2="'+x1+'" y2="'+top+'" stroke="#c9563f" stroke-dasharray="3 3" stroke-width="1"/>'+
+      '<text x="'+x1+'" y="8" font-size="7" text-anchor="end" fill="#c9563f">takedown line</text>'+
+      line("s","#e3a857") + line("t","#f2d56b") + labels + '</svg>';
+  }
+
+  const notes = document.getElementById('notes');
+  const saveHint = document.getElementById('save-hint');
+  try{
+    notes.addEventListener('input', ()=>{
+      try{ localStorage.setItem('marco-notes', notes.value); saveHint.textContent = 'Saved in this browser.'; }
+      catch(e){ saveHint.textContent = ''; }
+    });
+  } catch(e){}
+
+  function showResults(){
+    wrap.classList.add('hidden');
+    hud.classList.add('hidden');
+    resultsEl.classList.remove('hidden');
+    resultsEl.scrollTop = 0;
+
+    const end = ENDINGS[ended];
+    document.getElementById('end-title').textContent = end.title;
+    document.getElementById('end-desc').textContent = end.desc;
+    document.getElementById('chart').innerHTML = chartSVG();
+    const peak = Math.max.apply(null, history.map(h => h.s));
+    document.getElementById('end-stats').textContent =
+      "Peak guard: " + peak + " of 100 \u00b7 Final trust: " + trust + " of 100 \u00b7 Real material reached: " + depth + " of 14 \u00b7 Missteps he is trained to detect: " + missCount;
+
+    const rev = document.getElementById('review');
+    rev.innerHTML = "";
+    picks.forEach((p,i)=>{
+      const m = moments[i], o = m.options[p.k];
+      const div = document.createElement('div');
+      div.className = 'rev';
+      if(p.check){
+        div.innerHTML =
+          '<div class="rev-title">'+(i+1)+'. '+m.title+'</div>'+
+          '<div class="rev-said">You noticed: '+o.l+'</div>'+
+          '<p class="rev-why">'+o.t+'</p>'+
+          '<p class="rev-why">Not scored. Bring it to your group: what in Marco might be evoking that reaction, and what would you do with it?</p>';
+        rev.appendChild(div);
+        return;
+      }
+      const others = m.options.map((x,k)=>({x:x,k:k})).filter(e => e.k !== p.k);
+      let chips = '<span class="chip">'+fmt(p.dS, p.dT)+'</span>';
+      if(p.timing === "ripe") chips += '<span class="chip ok">Well timed</span>';
+      if(p.timing === "early") chips += '<span class="chip bad">Too early</span>';
+      if(o.kind) chips += '<span class="chip bad">'+KINDS[o.kind]+'</span>';
+      if(o.kind === "presume") chips += '<span class="chip bad">Trust rebuilds slowly after this</span>';
+      div.innerHTML =
+        '<div class="rev-title">'+(i+1)+'. '+m.title+'</div>'+
+        '<div class="rev-said">You said: '+o.l+'</div>'+
+        '<div class="rev-react">'+p.reply+'</div>'+ chips +
+        '<p class="rev-why">'+o.w+'</p>'+
+        ((ended === "takedown" && i === picks.length - 1) ? '<p class="rev-why" style="color:#e08a76;">This is where he took the floor.</p>' : '')+
+        '<details><summary>Other paths and how they would have landed</summary>'+
+        others.map(e=>'<div class="alt"><strong>'+e.x.l+'</strong><br><span class="chip">'+altEffect(e.x)+'</span><br>'+e.x.w+'</div>').join("")+
+        '</details>';
+      rev.appendChild(div);
+    });
+
+    try{
+      const saved = localStorage.getItem('marco-notes');
+      if(saved && !notes.value) notes.value = saved;
+    } catch(e){}
+  }
+
+  startBtn.addEventListener('click', ()=>{
+    resetGame();
+    titleEl.classList.add('hidden');
+    hud.classList.remove('hidden');
+    wrap.classList.remove('hidden');
+    startMoment(0);
+    box.focus();
+  });
+
+  document.getElementById('restart-btn').addEventListener('click', ()=>{
+    resetGame();
+    resultsEl.classList.add('hidden');
+    titleEl.classList.remove('hidden');
+  });
+
+  resetGame();
+})();
+</script>
+</body>
+</html>
